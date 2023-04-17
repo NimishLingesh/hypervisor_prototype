@@ -11,4 +11,5 @@ xor $10,$6,$8
 or $11,$4,100
 sll $12,$7,10
 srl $13,$8,10
+SNAPSHOT snapshot_vm1
 DUMP_PROCESSOR_STATE
