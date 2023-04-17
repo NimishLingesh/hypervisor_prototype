@@ -17,7 +17,6 @@ using namespace std;
 
 // int register1[32] = { 0 };
 // int register2[32] = { 0 };
-vector<int> registers(32, 0);
 vector<int> register1(32, 0);
 vector<int> register2(32, 0);
 
@@ -37,6 +36,10 @@ vector<string> customSplit(string str, char separator) {
     }
     return strings;
 }
+
+// void execute_inst(vector<int>& registers) {
+
+// }
 
 void execute_instructions(string instruction, vector<int>& registers) {
     cout << "Executing instruction:" << instruction << endl;
@@ -107,7 +110,7 @@ void execute_instructions(string instruction, vector<int>& registers) {
 }
 
 void handle_instructions(string file_name, int inst_limit) {
-    // int registers[32] = { 0 };
+    int registers[32] = { 0 };
     ifstream file(file_name);
 
     // validating the file
@@ -131,11 +134,72 @@ void handle_instructions(string file_name, int inst_limit) {
             temp = 0;
         }
         inst_count += 1;
+        // if (inst_count > inst_limit)
+        //     break;
         // Parse the instruction
         string arg, op;
         istringstream iss(line);
         iss >> op >> arg;
-        execute_instructions(line, registers);
+
+        // Conditions for the instructions
+        if (op == "add") {
+            ret = customSplit(arg, ',');
+            registers[stoi(ret[0].substr(1))] = registers[stoi(ret[1].substr(1))] + registers[stoi(ret[2].substr(1))];
+        }
+        else if (op == "addi") {
+            ret = customSplit(arg, ',');
+            registers[stoi(ret[0].substr(1))] = registers[stoi(ret[1].substr(1))] + stoi(ret[2]);
+        }
+        else if (op == "sub") {
+            ret = customSplit(arg, ',');
+            registers[stoi(ret[0].substr(1))] = registers[stoi(ret[1].substr(1))] - registers[stoi(ret[2].substr(1))];
+        }
+        else if (op == "mul") {
+            ret = customSplit(arg, ',');
+            registers[stoi(ret[0].substr(1))] = registers[stoi(ret[1].substr(1))] * registers[stoi(ret[2].substr(1))];
+        }
+        else if (op == "and") {
+            ret = customSplit(arg, ',');
+            registers[stoi(ret[0].substr(1))] = registers[stoi(ret[1].substr(1))] & registers[stoi(ret[2].substr(1))];
+        }
+        else if (op == "or") {
+            ret = customSplit(arg, ',');
+            if ('$' == ret[2][0]){
+                registers[stoi(ret[0].substr(1))] = registers[stoi(ret[1].substr(1))] | registers[stoi(ret[2].substr(1))];
+            }
+            else
+            {
+                registers[stoi(ret[0].substr(1))] = registers[stoi(ret[1].substr(1))] | stoi(ret[2]);
+            }
+        }
+        else if (op == "xor") {
+            ret = customSplit(arg, ',');
+            registers[stoi(ret[0].substr(1))] = registers[stoi(ret[1].substr(1))] ^ registers[stoi(ret[2].substr(1))];
+        }
+        else if (op == "sll") {
+            ret = customSplit(arg, ',');
+            registers[stoi(ret[0].substr(1))] = registers[stoi(ret[1].substr(1))] << stoi(ret[2]);
+        }
+        else if (op == "srl") {
+            ret = customSplit(arg, ',');
+            registers[stoi(ret[0].substr(1))] = registers[stoi(ret[1].substr(1))] >> stoi(ret[2]);
+        }          
+        else if (op == "li") {
+            ret = customSplit(arg, ',');
+            registers[stoi(ret[0].substr(1))] = stoi(ret[1]);
+        }
+        else if (op == "DUMP_PROCESSOR_STATE") {
+            cout << "Registers:" << endl;
+            for (int i = 0; i < 32; i++) {
+            cout << "$" << i << ": " << registers[i] << endl;
+            }
+        }
+        else if (op == "#")
+            continue;
+        else {
+            cerr << "Error: Unknown instruction " << op << endl;
+        return;
+        }
     }
     cout << "Number of instructions executed: " << inst_count << endl;
 
@@ -183,7 +247,6 @@ pair<string, string> read_config_file(string config_file_name){
 // main program
 int main(int argc, char* argv[]) {
     try{
-        int option;
         // if no arguments passed, then program waits for the context switch
         if (argc < 2) {
             cerr << "Error: No configuration file is passed!" << endl;
@@ -191,80 +254,50 @@ int main(int argc, char* argv[]) {
             cout << "./a.out -v assembly_file_vm2 -v assembly_file_vm1" << endl;
             return 1;
         }
-
-        // Handling the instructions with one parameter
-        else if (argc <= 3) {
+        else if (argc == 2) {
             string file_name, inst_count;
             pair<string, string> ret_val;
-
-            option = getopt(argc, argv, "v:s:");
-            switch (option) {
-            case 'v':
-                ret_val = read_config_file(optarg);
-                file_name = ret_val.first;
-                inst_count = ret_val.second;
-                if (file_name == "Invalid") {
-                    cerr << "Error: Invalid file name" << endl;
-                    return 0;
-                }
-                else{
-                    cout << "------------------------------------------------" << endl;
-                    cout << "Handling the instructions of " << file_name << endl;
-                    handle_instructions(file_name, stoi(inst_count));
-                    cout << "Execution success !!!" << endl << endl;
-                }
-                break;
-            default:
-                cerr << "Error: Usage" << endl;
-                cout << "Execute in this format:" << endl;
-                cout << "./a.out -v assembly_file_vm2 -v assembly_file_vm1" << endl;
-                return 1;
+            cout << argc;
+            ret_val = read_config_file(argv[1]);
+            file_name = ret_val.first;
+            inst_count = ret_val.second;
+            if (file_name == "Invalid") {
+                cerr << "Error: Invalid file name" << endl;
+                return 0;
+            }
+            else{
+                cout << "------------------------------------------------" << endl;
+                cout << "Handling the instructions of " << file_name << endl;
+                handle_instructions(file_name, stoi(inst_count));
+                cout << "Execution success !!!" << endl << endl;
             }
             return 0;
         }
-
-        // Handling multiple parameters
         vector<string> vm1_instructions;
         vector<string> vm2_instructions;
         pair<string, string> ret_val;
-        string vm_inst_file_name, line_trace, vm1_inst_limit, vm2_inst_limit;
+        string vm1_inst_file_name, vm1_inst_limit, vm2_inst_file_name, vm2_inst_limit;
 
-        while ((option = getopt(argc, argv, "v:s:")) != -1) {
-            ifstream vm_file;
-            switch (option) {
-                case 'v':
-                    ret_val = read_config_file(optarg);
-                    vm_inst_file_name = ret_val.first;
-                    if (vm_inst_file_name == "Invalid") {
-                        cerr << "Error: Invalid file name" << endl;
-                        return 1;
-                    }
+        ret_val = read_config_file(argv[1]);
+        vm1_inst_file_name = ret_val.first;
+        vm1_inst_limit = ret_val.second;
 
-                    vm_file.open(vm_inst_file_name);
-                    if (string(optarg).find("vm1") != std::string::npos) {
-                        vm1_inst_limit = ret_val.second;
-                        while(getline(vm_file, line_trace)){
-                            stringstream s_s(line_trace);
-                            vm1_instructions.push_back(s_s.str());
-                        }
-                    }
-                    else if (string(optarg).find("vm2") != std::string::npos) {
-                        vm2_inst_limit = ret_val.second;
-                        cout << vm2_inst_limit << endl;
-                        while(getline(vm_file, line_trace)){
-                            stringstream s_s(line_trace);
-                            vm2_instructions.push_back(s_s.str());
-                        }
-                    }
-                    break;
-                case 's':
-                    break;
-                default:
-                    cerr << "Error: Usage" << endl;
-                    cout << "Execute in this format:" << endl;
-                    cout << "./a.out -v assembly_file_vm2 -v assembly_file_vm1" << endl;
-                    return 1;
-            }
+        ret_val = read_config_file(argv[2]);
+        vm2_inst_file_name = ret_val.first;
+        vm2_inst_limit = ret_val.second;
+
+        ifstream vm1_file(vm1_inst_file_name);
+        string line_1;
+        while(getline(vm1_file, line_1)){
+            stringstream s_s(line_1);
+            vm1_instructions.push_back(s_s.str());
+        }
+
+        ifstream vm2_file(vm2_inst_file_name);
+        string line_2;
+        while(getline(vm2_file, line_2)){
+            stringstream s_s(line_2);
+            vm2_instructions.push_back(s_s.str());
         }
 
         // to keep track of context switch 
@@ -296,6 +329,23 @@ int main(int argc, char* argv[]) {
                 temp = 0;
             }
         }
+
+        // for(int i = 1; i < 3; ++i) {
+        //     string file_name, inst_count;
+        //     pair<string, string> ret_val;
+            
+        //     ret_val = read_config_file(argv[i]);
+        //     file_name = ret_val.first;
+        //     inst_limit = ret_val.second;
+        //     if (file_name == "Invalid")
+        //         continue;
+        //     else{
+        //         cout << "------------------------------------------------" << endl;
+        //         cout << "Handling the instructions of " << file_name << endl;
+        //         handle_instructions(file_name, stoi(inst_limit));
+        //         cout << "Execution success !!!" << endl << endl;
+        //     }
+        // }
     }
     catch (const std::exception& ex) {
         std::cerr << "Error: " << ex.what() << std::endl;
