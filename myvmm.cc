@@ -1,7 +1,7 @@
 // commands to compile and run the code 
 // g++ myvmm.cpp 
-// ./a.out assembly_file_vm1
-// ./a.out assembly_file_vm1 assembly_file_vm2
+// ./a.out -v assembly_file_vm1
+// ./a.out -v assembly_file_vm1 -v assembly_file_vm2
 
 #include <iostream>
 #include <fstream>
