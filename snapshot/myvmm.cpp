@@ -139,8 +139,8 @@ void execute_instructions(string instruction, vector<int>& registers) {
     else if (op == "#")
         return;
     else {
-        cerr << "Error: Unknown or empty instruction " << op << endl;
-    // return;
+        cerr << "Error: Unknown instruction " << op << endl;
+    return;
     }
 
 }
@@ -326,8 +326,7 @@ int main(int argc, char* argv[]) {
 
         if (!vm1_instructions.empty() && !vm2_instructions.empty()) {
             int total_inst = vm1_instructions.size() + vm2_instructions.size();
-            cout<<" Total instruction: " << total_inst;
-            for(int k=0; k <= total_inst+2; k++) {
+            for(int k=0; k < total_inst; k++) {
                 if (temp == 0) {
                     cout << "Context switch to VM1 ....." << endl;
                     int i = 0;
