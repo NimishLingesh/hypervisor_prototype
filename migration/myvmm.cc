@@ -1,9 +1,16 @@
 // commands to compile and run the code 
 // g++ myvmm.cpp 
+
+// INSTRUCTION EXECUTION
 // ./a.out -v assembly_file_vm1
 // ./a.out -v assembly_file_vm1 -v assembly_file_vm2
+
+// SNAPSHOT CREATION
 // ./a.out -v assembly_file_vm1 -s snapshot_vm1
 // ./a.out -v assembly_file_vm1 -s snapshot_vm1 -v assembly_file_vm2 -s snapshot_vm2
+
+// MIGRATION
+// ./a.out -v assembly_file_vm1
 
 #include <iostream>
 #include <fstream>
@@ -12,6 +19,7 @@
 #include <string.h>
 #include <vector>
 #include <map>
+#include <ctime>
 #include <unistd.h>
 #include <unordered_map>
 
@@ -22,6 +30,14 @@ using namespace std;
 // vector<int> registers(32, 0);
 vector<int> register1(32, 0);
 vector<int> register2(32, 0);
+
+
+string get_current_time() {
+    time_t now = time(nullptr);
+    char timestamp[20];
+    strftime(timestamp, sizeof(timestamp), "%Y-%m-%d_%H:%M:%S", localtime(&now));
+    return string(timestamp);
+}
 
 vector<string> customSplit(string str, char separator) {
     vector < string > strings;
@@ -75,7 +91,7 @@ vector<int> retrieve_snapshot(const string& filename) {
 
 void execute_instructions(string instruction, vector<int>& registers) {
     cout << "Executing instruction:" << instruction << endl;
-    string arg, op, snapshot_file;
+    string arg, op, snapshot_file, host_ip;
     vector < string > ret;
     istringstream iss(instruction);
     iss >> op >> arg;
@@ -136,6 +152,12 @@ void execute_instructions(string instruction, vector<int>& registers) {
         snapshot_file = arg;
         create_snapshot(registers, snapshot_file);
     }
+    // else if (op == "MIGRATE") {
+    //     host_ip = arg;
+    //     // snapshot_file = "snapshot_" + get_current_time();
+    //     // create_snapshot(registers, snapshot_file);
+    //     migrate(registers, host_ip, instructions)
+    // }
     else if (op == "#")
         return;
     else {
@@ -174,6 +196,9 @@ void handle_instructions(string file_name, int inst_limit) {
         string arg, op;
         istringstream iss(line);
         iss >> op >> arg;
+        if (op == "MIGRATE") {
+            // migrate(registers, host_ip, instructions);
+        }
         if (string(file_name).find("vm1")) {
             execute_instructions(line, register1);
         }
