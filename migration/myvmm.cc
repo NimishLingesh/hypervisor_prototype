@@ -10,7 +10,8 @@
 // ./a.out -v assembly_file_vm1 -s snapshot_vm1 -v assembly_file_vm2 -s snapshot_vm2
 
 // MIGRATION
-// ./a.out -v assembly_file_vm1
+// Host1: ./a.out -v assembly_file_vm1
+// Host2: ./a.out
 
 #include <iostream>
 #include <fstream>
@@ -21,6 +22,9 @@
 #include <map>
 #include <ctime>
 #include <unistd.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <cstring>
 #include <unordered_map>
 
 using namespace std;
@@ -30,6 +34,56 @@ using namespace std;
 // vector<int> registers(32, 0);
 vector<int> register1(32, 0);
 vector<int> register2(32, 0);
+
+
+
+void migrate_via_socket(vector<int>& registers, string ip_address, vector<string>& instructions) {
+    // create a string representation of the data array
+    std::ostringstream oss;
+    bool first = true;
+    for (auto value : registers) {
+        if (!first) {
+            oss << ",";
+        }
+        oss << value;
+        first = false;
+    }
+    std::string reg_str = oss.str();
+
+    std::ostringstream oss_inst;
+    bool second = true;
+    for (auto value : instructions) {
+        if (!second) {
+            oss_inst << ";";
+        }
+        oss_inst << value;
+        second = false;
+    }
+    std::string inst_str = oss_inst.str();
+    reg_str += "#" + inst_str;
+
+    // create a socket
+    int client_socket = socket(AF_INET, SOCK_STREAM, 0);
+    
+    // specify the server address and port
+    struct sockaddr_in server_address;
+    server_address.sin_family = AF_INET;
+    server_address.sin_port = htons(12345);
+    inet_pton(AF_INET, ip_address.c_str(), &server_address.sin_addr);
+
+    // connect to the server
+    connect(client_socket, (struct sockaddr *)&server_address, sizeof(server_address));
+
+    // send data to the server
+    send(client_socket, reg_str.c_str(), reg_str.length(), 0);
+    
+    // receive data from the server
+    char buffer2[1024] = {0};
+    read(client_socket, buffer2, 1024);
+    std::cout << "Server message: " << buffer2 << std::endl;   
+    // close the socket
+    close(client_socket);
+}
 
 
 string get_current_time() {
@@ -54,6 +108,19 @@ vector<string> customSplit(string str, char separator) {
         }
     }
     return strings;
+}
+
+void retrieve_register(string str_reg, char separator, vector<int>& registers) {
+    std::vector<int> int_vector;
+    std::stringstream ss(str_reg);
+    std::string token;
+    while (std::getline(ss, token, ',')) {
+        int value = std::stoi(token);
+        int_vector.push_back(value);
+    }
+    for (int i = 0; i < int_vector.size(); i++) {
+        registers[i] = int_vector[i];
+    }
 }
 
 void create_snapshot(const vector<int>& v, const string& filename) {
@@ -184,8 +251,15 @@ void handle_instructions(string file_name, int inst_limit) {
 
     int inst_count = 0;
     int temp = 0;
+    int migrate_flag = 0;
+    vector<string> migrate_inst;
+    string ip_address;
 
     while (getline(file, line)) {
+        if (migrate_flag) {
+            migrate_inst.push_back(line);
+            continue;
+        }
         temp += 1;
         if (temp == inst_limit){
             cout << "Context switch after executing " << inst_limit << " instructions" <<endl;
@@ -197,13 +271,24 @@ void handle_instructions(string file_name, int inst_limit) {
         istringstream iss(line);
         iss >> op >> arg;
         if (op == "MIGRATE") {
-            // migrate(registers, host_ip, instructions);
+            migrate_flag = 1;
+            ip_address = arg;
+            // migrate_inst.push_back("EOF");
+            continue;
         }
         if (string(file_name).find("vm1")) {
             execute_instructions(line, register1);
         }
         else {
             execute_instructions(line, register2);
+        }
+    }
+    if (migrate_flag) {
+        if (string(file_name).find("vm1")) {
+            migrate_via_socket(register1, ip_address, migrate_inst);
+        }
+        else {
+            migrate_via_socket(register2, ip_address, migrate_inst);
         }
     }
     cout << "Number of instructions executed: " << inst_count << endl;
@@ -248,6 +333,54 @@ pair<string, string> read_config_file(string config_file_name){
     return ret_val;
 }
 
+void listen_via_socket() {
+    // create a socket
+    int server_socket = socket(AF_INET, SOCK_STREAM, 0);
+    
+    // specify the server address and port
+    struct sockaddr_in server_address;
+    server_address.sin_family = AF_INET;
+    server_address.sin_addr.s_addr = INADDR_ANY;
+    server_address.sin_port = htons(12345);
+    
+    // bind the socket to the server address and port
+    bind(server_socket, (struct sockaddr *)&server_address, sizeof(server_address));
+    
+    // listen for incoming connections
+    listen(server_socket, 3);
+    
+    // accept incoming connections
+    int client_socket;
+    struct sockaddr_in client_address;
+    socklen_t addrlen = sizeof(client_address);
+    client_socket = accept(server_socket, (struct sockaddr *)&client_address, &addrlen);
+    
+    // send data to the client
+    char *message = "Hello, client!";
+    send(client_socket, message, strlen(message), 0);
+    
+    // receive data from the client
+    char buffer[1024] = {0};
+    read(client_socket, buffer, 1024);
+    // cout << "Client message: " << buffer << endl;
+
+    // close the socket
+    close(server_socket);
+    
+    string buffer_str = string(buffer);
+    int pos = buffer_str.find('#');
+    string str_registers = buffer_str.substr(0,pos);
+    retrieve_register(str_registers, ',', register1);
+
+    string instructions = buffer_str.substr(pos+1);
+    vector<string> vec_inst = customSplit(instructions, ';');
+    int inst_length = vec_inst.size();
+    cout << "Total instructions :" << inst_length << endl;
+    for (int i = 0; i < vec_inst.size(); i++) {
+        execute_instructions(vec_inst[i], register1);
+    }
+
+}
 
 // main program
 int main(int argc, char* argv[]) {
@@ -255,10 +388,14 @@ int main(int argc, char* argv[]) {
         int option;
         // if no arguments passed, then program waits for the context switch
         if (argc < 2) {
-            cerr << "Error: No configuration file is passed!" << endl;
-            cout << "Execute in this format:" << endl;
-            cout << "./a.out -v assembly_file_vm2 -v assembly_file_vm1" << endl;
-            return 1;
+            cout << endl << "Hypervisor running .... " << endl << "Handles if there any VM migrations..." << endl;
+            listen_via_socket();
+            cout << "Successfully spinned up migrated VM" << endl;
+            return 0;
+            // cerr << "Error: No configuration file is passed!" << endl;
+            // cout << "Execute in this format:" << endl;
+            // cout << "./a.out -v assembly_file_vm2 -v assembly_file_vm1" << endl;
+            // return 1;
         }
 
         // Handling the instructions with one parameter
