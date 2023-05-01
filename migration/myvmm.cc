@@ -76,21 +76,9 @@ void migrate_via_socket(vector<int>& registers, string ip_address, vector<string
 
     // send data to the server
     send(client_socket, reg_str.c_str(), reg_str.length(), 0);
-    
-    // receive data from the server
-    char buffer2[1024] = {0};
-    read(client_socket, buffer2, 1024);
-    std::cout << "Server message: " << buffer2 << std::endl;   
+
     // close the socket
     close(client_socket);
-}
-
-
-string get_current_time() {
-    time_t now = time(nullptr);
-    char timestamp[20];
-    strftime(timestamp, sizeof(timestamp), "%Y-%m-%d_%H:%M:%S", localtime(&now));
-    return string(timestamp);
 }
 
 vector<string> customSplit(string str, char separator) {
@@ -219,12 +207,6 @@ void execute_instructions(string instruction, vector<int>& registers) {
         snapshot_file = arg;
         create_snapshot(registers, snapshot_file);
     }
-    // else if (op == "MIGRATE") {
-    //     host_ip = arg;
-    //     // snapshot_file = "snapshot_" + get_current_time();
-    //     // create_snapshot(registers, snapshot_file);
-    //     migrate(registers, host_ip, instructions)
-    // }
     else if (op == "#")
         return;
     else {
@@ -273,7 +255,6 @@ void handle_instructions(string file_name, int inst_limit) {
         if (op == "MIGRATE") {
             migrate_flag = 1;
             ip_address = arg;
-            // migrate_inst.push_back("EOF");
             continue;
         }
         if (string(file_name).find("vm1")) {
@@ -355,14 +336,9 @@ void listen_via_socket() {
     socklen_t addrlen = sizeof(client_address);
     client_socket = accept(server_socket, (struct sockaddr *)&client_address, &addrlen);
     
-    // send data to the client
-    char *message = "Hello, client!";
-    send(client_socket, message, strlen(message), 0);
-    
     // receive data from the client
     char buffer[1024] = {0};
     read(client_socket, buffer, 1024);
-    // cout << "Client message: " << buffer << endl;
 
     // close the socket
     close(server_socket);
@@ -388,14 +364,10 @@ int main(int argc, char* argv[]) {
         int option;
         // if no arguments passed, then program waits for the context switch
         if (argc < 2) {
-            cout << endl << "Hypervisor running .... " << endl << "Handles if there any VM migrations..." << endl;
+            cout << endl << "Hypervisor running .... " << endl << "Handles if there are any VM migrations..." << endl;
             listen_via_socket();
             cout << "Successfully spinned up migrated VM" << endl;
             return 0;
-            // cerr << "Error: No configuration file is passed!" << endl;
-            // cout << "Execute in this format:" << endl;
-            // cout << "./a.out -v assembly_file_vm2 -v assembly_file_vm1" << endl;
-            // return 1;
         }
 
         // Handling the instructions with one parameter
